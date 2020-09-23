@@ -39,7 +39,7 @@ import seaborn as sn; sn.set(font_scale=1.4)
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import Model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import load_img, img_to_array, ImageDataGenerator
 from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.applications.resnet50 import preprocess_input
 from tensorflow.keras.applications.inception_v3 import InceptionV3
@@ -59,6 +59,17 @@ IMG_SIZE = 150
 
 class_names = ['with_mask', 'without_mask']
 class_names_label = {class_name:i for i, class_name in enumerate(class_names)}
+```
+
+```{python}
+datagen = ImageDataGenerator()
+#     featurewise_center=True,
+#     featurewise_std_normalization=True,
+#     rotation_range=20,
+#     width_shift_range=0.2,
+#     height_shift_range=0.2,
+#     horizontal_flip=True
+
 ```
 
 ```{python}
@@ -98,6 +109,10 @@ x,y = prepare_dataset(data_dir)
 ```
 
 ```{python}
+x.shape
+```
+
+```{python}
 def split_train_test(x,y,test_ratio = 0.2):
     """
     Split the given data into test and train set
@@ -126,12 +141,16 @@ def split_train_test(x,y,test_ratio = 0.2):
 x_train, x_test, y_train, y_test = split_train_test(x,y)
 ```
 
+```{python}
+datagen.fit(x_train)
+```
+
 ### Checking the shape of the content
 
 
 ```{python}
 print("Number of samples in training:" + str(x_train.shape[0]))
-print("Number of samples in test:" + str(x_train.shape[1]))
+print("Number of samples in test:" + str(x_test.shape[0]))
 
 print("Dimension of each sample: " + str(x_train.shape[1:]))
 ```
@@ -222,10 +241,14 @@ model.compile(optimizer = RMSprop(lr=0.0001),
 ```
 
 ```{python}
-history=model.fit(x=x_train,y=y_train,epochs=100,validation_data=(x_test,y_test))
+history=model.fit(datagen.flow(x_train, y_train, batch_size=32),epochs=30,validation_data=(x_test,y_test))
 ```
 
 ### Error and Accuracy charts
+
+```{python}
+len(history.history['val_acc'])
+```
 
 ```{python}
 def plot_train_test_loss(history):
@@ -239,13 +262,36 @@ def plot_train_test_loss(history):
     for i,ax in zip(range(0,4,2),axs):
 #         ax.plot(hist[fields[i]],label=fields[i],linewidth=20)
         
-        sn.lineplot(y=hist[fields[i]],x=range(0,100),ax=ax,label=fields[i],marker='o')
-        sn.lineplot(y=hist[fields[i+1]],x=range(0,100),ax=ax, label=fields[i+1],marker='o')
+        sn.lineplot(y=hist[fields[i]],x=range(0,30),ax=ax,label=fields[i],marker='o')
+        sn.lineplot(y=hist[fields[i+1]],x=range(0,30),ax=ax, label=fields[i+1],marker='o')
         
 ```
 
 ```{python}
 plot_train_test_loss(history)
+```
+
+```{python}
+predictions = model.predict(x_test)
+predictions = predictions > 0.5
+```
+
+```{python}
+cm = tf.math.confusion_matrix(y_test, predictions)
+```
+
+```{python}
+sn.heatmap(
+    cm, annot=True,
+    fmt="d",
+    xticklabels=class_names,
+    yticklabels=class_names)
+plt.xlabel("Predicted")
+plt.ylabel("True")
+```
+
+```{python}
+cm
 ```
 
 ```{python}
